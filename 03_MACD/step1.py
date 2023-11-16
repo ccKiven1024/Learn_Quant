@@ -1,5 +1,5 @@
 # 错误的结果的提示：如果能预测MACD的指标，会获得超高收益率
-# 版本2：只循环每个交易信号
+# 版本2：只遍历每个交易信号
 
 import numpy as np
 import pandas as pd
@@ -9,7 +9,7 @@ from datetime import date
 # 0 - 题目数据
 init_capital = 1e6
 cr = 5e-4
-excel_path = r"./StockData.xlsx"
+excel_path = r"./../data/StockData.xlsx"
 date_interval = (date(2006, 1, 4), date(2023, 8, 31))
 
 # 1 - 读取数据
@@ -41,9 +41,9 @@ buy_indices = buy_indices[np.where(
 sell_indices = sell_indices[np.where(
     (sell_indices > ibegin) & (sell_indices < iend))].tolist()
 # 对于首日作特殊处理
-if hist[ibegin-1]>0:
+if hist[ibegin-1] > 0:
     buy_indices.insert(0, ibegin)
-elif hist[ibegin-1]<0:
+elif hist[ibegin-1] < 0:
     sell_indices.insert(0, ibegin)
 
 # # 若持仓，首先平仓
@@ -56,7 +56,7 @@ elif hist[ibegin-1]<0:
 #         (trade_date[k].isoformat(), -1, capital, shares, var_price))
 
 i, j = 0, 0
-while sell_indices[j]<buy_indices[i]:
+while sell_indices[j] < buy_indices[i]:
     j += 1  # 跳过无意义的0持仓卖出
 # 此时buy_indices[i] <= sell_indices[j]，找到第一个买入信号
 sell_indices = sell_indices[j:]
@@ -78,7 +78,7 @@ for bi, si in zip(buy_indices, sell_indices):
         (trade_date[si].isoformat(), -1, capital, shares, var_price))
 
 # 可能还有一个买入信号未处理
-if buy_indices[-1]>sell_indices[-1]:
+if buy_indices[-1] > sell_indices[-1]:
     bi = buy_indices[-1]
     var_price = open_price[bi]
     shares = int(capital * (1 - cr) / var_price)  # 买入份额

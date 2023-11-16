@@ -96,7 +96,7 @@ def calculate_profit(file_path, m_day, start_day, end_day):
 
 
 def main():
-    file_path = r'StockData.xlsx'
+    file_path = r'./../data/StockData.xlsx'
     m_day = 240
     start_day = ' 2006/01/04'
     end_day = ' 2023/08/31'
@@ -106,3 +106,17 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+"""
+The last  1th purchase date is  2023/07/31            and sale date is  2023/08/14
+The last  2th purchase date is  2023/05/09            and sale date is  2023/05/10
+The last  3th purchase date is  2023/03/31            and sale date is  2023/04/24
+The last  4th purchase date is  2023/03/24            and sale date is  2023/03/27
+The last  5th purchase date is  2023/03/01            and sale date is  2023/03/09
+The last  6th purchase date is  2023/02/21            and sale date is  2023/02/28
+The last  7th purchase date is  2023/02/10            and sale date is  2023/02/20
+The last  8th purchase date is  2023/01/17            and sale date is  2023/02/09
+The last  9th purchase date is  2020/06/02            and sale date is  2021/07/27
+The last 10th purchase date is  2020/04/30            and sale date is  2020/05/25
+Total profit = 4677.30 from  2006/01/04 to  2023/08/31
+"""

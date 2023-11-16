@@ -177,7 +177,7 @@ def get_optimal_dea(data: DataNode, index_range, dea1_range, dea2_range, _capita
 def main():
     s_clk = time()
     # 0 - 题目数据
-    file_path = './data/StockData.xlsx'
+    file_path = r"./../data/StockData.xlsx"
     init_capital = 1e6
     cr = 5e-4
     date_interval = (date(2006, 1, 4), date(2023, 8, 31))

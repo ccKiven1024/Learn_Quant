@@ -6,7 +6,7 @@ def main():
     s_clk = time()
 
     # 0 - 题目数据
-    file_path = r"./data/StockData.xlsx"
+    file_path = r"./../data/StockData.xlsx"
     init_capital = 1e6
     init_shares = 0
     cr = 5e-4
