@@ -109,4 +109,7 @@ wb.close()
    mpf.show()
    ```
 
-   
+
+
+
+安装`talib`：https://www.lfd.uci.edu/~gohlke/pythonlibs/#ta-lib
