@@ -1,5 +1,5 @@
-from exercise4_2 import np, date, time, DataNode, trade, get_optimal_dea
-from exercise4_3 import get_first_date_index
+from step2 import np, date, time, DataNode, trade, get_optimal_dea
+from step3 import get_first_date_index
 
 
 def main():
@@ -7,6 +7,7 @@ def main():
 
     # 0 - 题目数据
     file_path = r"./../data/StockData.xlsx"
+    stock_code = r"399300"
     init_capital = 1e6
     init_shares = 0
     cr = 5e-4
@@ -15,7 +16,7 @@ def main():
     window_years_range = range(1, 8)
 
     # 1 - 读取数据
-    data = DataNode(file_path)
+    data = DataNode(file_path, stock_code)
 
     # 计算年份
     start_year, end_year = [date.year for date in test_interval]
@@ -29,20 +30,21 @@ def main():
                 data.trade_date, y-window_size), get_first_date_index(data.trade_date, y)-1]
             _, dea1, dea2 = get_optimal_dea(
                 data, train_range, dea1_range, dea2_range, init_capital, cr)
-            irange = [train_range[1]+1,
-                      get_first_date_index(data.trade_date, y+1)-1]
+            test_range = [train_range[1]+1,
+                          get_first_date_index(data.trade_date, y+1)-1]
             capital, shares = trade(
-                data, irange, dea1, dea2, shares, capital, cr)
+                data, test_range, dea1, dea2, shares, capital, cr)
 
         y = end_year
         train_range = [get_first_date_index(
             data.trade_date, y-window_size), get_first_date_index(data.trade_date, y)-1]
         _, dea1, dea2 = get_optimal_dea(
             data, train_range, dea1_range, dea2_range, init_capital, cr)
-        irange = [train_range[1]+1, data.trade_date.shape[0]-1]
-        capital, shares = trade(data, irange, dea1, dea2, shares, capital, cr)
+        test_range = [train_range[1]+1, data.trade_date.shape[0]-1]
+        capital, shares = trade(data, test_range, dea1,
+                                dea2, shares, capital, cr)
         print(
-            f"window_size = {window_size}, net asset = {capital+shares*data.close_price[irange[1]]:.3f}, time cost = {time()-s_clk:.3f} s")
+            f"window_size = {window_size}, net asset = {capital+shares*data.close_price[test_range[1]]:.3f}, time cost = {time()-s_clk:.3f} s")
 
 
 if __name__ == "__main__":

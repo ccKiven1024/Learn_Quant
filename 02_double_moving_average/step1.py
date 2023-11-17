@@ -66,22 +66,22 @@ def trade(data: DataNode, boundary, day_set, _capital, _shares, cr):
 
     # 模拟交易
     # 既无买入信号，也无卖出信号
-    if buy_indices.shape[0] == 0 and sell_indices.shape[0] == 0:
+    if buy_indices.size == 0 and sell_indices.size == 0:
         return (_capital, _shares)
     # 有买入信号，无卖出信号
-    elif buy_indices.shape[0] != 0 and sell_indices.shape[0] == 0:
+    elif buy_indices.size != 0 and sell_indices.size == 0:
         if _shares == 0:
             var_price = data.open[buy_indices[0]]
-            shares = _capital(1-cr)//var_price
+            shares = _capital*(1-cr)//var_price
             capital = _capital - shares*var_price(1+cr)
             return (capital, shares)
         else:
             return (_capital, _shares)
     # 无买入信号，有卖出信号
-    elif buy_indices.shape[0] == 0 and sell_indices.shape[0] != 0:
+    elif buy_indices.size == 0 and sell_indices.size != 0:
         if _shares != 0:
             var_price = data.open[sell_indices[0]]
-            capital = _capital + _shares*var_price(1-cr)
+            capital = _capital + _shares*var_price*(1-cr)
             return (capital, 0)
         else:
             return (_capital, _shares)
@@ -94,11 +94,11 @@ def trade(data: DataNode, boundary, day_set, _capital, _shares, cr):
     if sell_indices[0] < buy_indices[0]:  # 如果第一个是卖出信号
         if shares != 0:  # 如果有持仓，那么卖出
             var_price = data.open[sell_indices[0]]
-            capital = capital + shares*var_price(1-cr)
+            capital += shares*var_price*(1-cr)
             shares = 0
         sell_indices = sell_indices[1:]
 
-        if not sell_indices:  # 如果卖出信号已经用完，由于存在买入信号，那么买入
+        if sell_indices.size == 0:  # 如果卖出信号已经用完，由于存在买入信号，那么买入
             var_price = data.open[buy_indices[0]]
             shares = capital*(1-cr)//var_price
             capital -= shares*var_price*(1+cr)

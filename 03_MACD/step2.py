@@ -7,8 +7,8 @@ from time import time
 
 
 class DataNode:
-    def __init__(self, file_path):
-        df = pd.read_excel(file_path, sheet_name="399300")
+    def __init__(self, path, code):
+        df = pd.read_excel(path, sheet_name="399300")
         self.trade_date = pd.to_datetime(df['Date'].values).date
         self.open_price = df['Open'].values
         self.close_price = df['Close'].values
@@ -20,8 +20,8 @@ class DataNode:
             (self.hist[:-1] > 0) & (self.hist[1:] < 0))[0] + 1
 
 
-def calculate_trade_signals(data: DataNode, index_range, dea1, dea2, _shares):
-    ibegin, iend = index_range
+def calculate_trade_signals(data: DataNode, boundary, dea1, dea2, _shares):
+    ibegin, iend = boundary
     # 剪枝金死叉
     gc = data.gold_cross[(data.gold_cross > ibegin-1)
                          & (data.gold_cross < iend)]
@@ -93,10 +93,10 @@ def calculate_trade_signals(data: DataNode, index_range, dea1, dea2, _shares):
     return (buy_indices, sell_indices)
 
 
-def trade(data: DataNode, index_range, dea1, dea2, _shares, _capital, cr):
+def trade(data: DataNode, boundary, dea1, dea2, _shares, _capital, cr):
     # 计算交易信号
     buy_indices, sell_indices = calculate_trade_signals(
-        data, index_range, dea1, dea2, _shares)
+        data, boundary, dea1, dea2, _shares)
 
     # 模拟交易
 
@@ -161,15 +161,15 @@ def trade(data: DataNode, index_range, dea1, dea2, _shares, _capital, cr):
     return (capital, shares)
 
 
-def func(data: DataNode, index_range, dea1, dea2, _shares, _capital, cr):
-    c, s = trade(data, index_range, dea1, dea2, _shares, _capital, cr)
-    na = c + s * data.close_price[index_range[1]]
+def func(data: DataNode, boundary, dea1, dea2, _shares, _capital, cr):
+    c, s = trade(data, boundary, dea1, dea2, _shares, _capital, cr)
+    na = c + s * data.close_price[boundary[1]]
     return (na, dea1, dea2)
 
 
-def get_optimal_dea(data: DataNode, index_range, dea1_range, dea2_range, _capital, cr):
+def get_optimal_dea(data: DataNode, boundary, dea1_range, dea2_range, _capital, cr):
     with mp.Pool() as pool:
-        res = pool.starmap(func, [(data, index_range, dea1, dea2, 0, _capital, cr)
+        res = pool.starmap(func, [(data, boundary, dea1, dea2, 0, _capital, cr)
                            for dea1 in dea1_range for dea2 in dea2_range])
     return max(res, key=lambda x: x[0])
 
@@ -178,19 +178,20 @@ def main():
     s_clk = time()
     # 0 - 题目数据
     file_path = r"./../data/StockData.xlsx"
+    stock_code = r"399300"
     init_capital = 1e6
     cr = 5e-4
     date_interval = (date(2006, 1, 4), date(2023, 8, 31))
     dea1_range = dea2_range = range(-100, 101)
 
     # 1 - 处理数据
-    data = DataNode(file_path)
-    irange = list(map(lambda date: np.where(
+    data = DataNode(file_path, stock_code)
+    boundary = list(map(lambda date: np.where(
         data.trade_date == date)[0][0], date_interval))
 
     # 2 - 计算最优dea1,dea2
     na, dea1, dea2 = get_optimal_dea(
-        data, irange, dea1_range, dea2_range, init_capital, cr)
+        data, boundary, dea1_range, dea2_range, init_capital, cr)
     print(
         f"na = {na:.3f}, dea1 = {dea1}, dea2 = {dea2}, time cost = {time()-s_clk:.3f} s")
 

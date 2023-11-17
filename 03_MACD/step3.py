@@ -1,4 +1,4 @@
-from exercise4_2 import np, date, time, DataNode, trade, get_optimal_dea
+from step2 import np, date, time, DataNode, trade, get_optimal_dea
 
 
 def get_first_date_index(date_arr, year):
@@ -12,6 +12,7 @@ def main():
 
     # 0 - 题目数据
     file_path = r"./../data/StockData.xlsx"
+    stock_code = r"399300"
     init_capital = 1e6
     init_shares = 0
     cr = 5e-4
@@ -20,7 +21,7 @@ def main():
     dea1_range = dea2_range = range(-100, 101)
 
     # 1 - 处理数据
-    data = DataNode(file_path)
+    data = DataNode(file_path, stock_code)
 
     # 计算范围等
     sample_range = list(map(lambda date: np.where(
@@ -34,24 +35,25 @@ def main():
     for y in range(start_year, end_year):
         _, dea1, dea2 = get_optimal_dea(
             data, sample_range, dea1_range, dea2_range, init_capital, cr)
-        irange = [sample_range[1]+1,
-                  get_first_date_index(data.trade_date, y+1)-1]
-        capital, shares = trade(data, irange, dea1, dea2, shares, capital, cr)
+        test_range = [sample_range[1]+1,
+                      get_first_date_index(data.trade_date, y+1)-1]
+        capital, shares = trade(data, test_range, dea1,
+                                dea2, shares, capital, cr)
 
         print(
-            f"year: {y}, dea1 = {dea1}, dea2 = {dea2}, capital = {capital:.3f}, shares = {shares}, net_asset = {capital+shares*data.close_price[irange[1]]:.3f}, time cost = {time()-s_clk:.3f} s")
+            f"year: {y}, dea1 = {dea1}, dea2 = {dea2}, capital = {capital:.3f}, shares = {shares}, net_asset = {capital+shares*data.close_price[test_range[1]]:.3f}, time cost = {time()-s_clk:.3f} s")
 
         sample_range = [get_first_date_index(
-            data.trade_date, y-window_yrs+1), irange[1]]
+            data.trade_date, y-window_yrs+1), test_range[1]]
 
     # 处理最后一年
     y = end_year
     _, dea1, dea2 = get_optimal_dea(
         data, sample_range, dea1_range, dea2_range, init_capital, cr)
-    irange = [sample_range[1]+1, data.trade_date.shape[0]-1]
-    capital, shares = trade(data, irange, dea1, dea2, shares, capital, cr)
+    test_range = [sample_range[1]+1, data.trade_date.shape[0]-1]
+    capital, shares = trade(data, test_range, dea1, dea2, shares, capital, cr)
     print(
-        f"year: {y}, dea1 = {dea1}, dea2 = {dea2}, capital = {capital:.3f}, shares = {shares}, net_asset = {capital+shares*data.close_price[irange[1]]:.3f}, time cost = {time()-s_clk:.3f} s")
+        f"year: {y}, dea1 = {dea1}, dea2 = {dea2}, capital = {capital:.3f}, shares = {shares}, net_asset = {capital+shares*data.close_price[test_range[1]]:.3f}, time cost = {time()-s_clk:.3f} s")
 
 
 if __name__ == "__main__":

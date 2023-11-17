@@ -8,8 +8,8 @@ def main():
     file_path = r"./../data/StockData.xlsx"
     stock_name = r"399300"
     init_capital = 1e6
-    commission = 5e-4
-
+    init_shares = 0
+    cr = 5e-4
     day1_range = range(1, 15 + 1)
     day2_range = range(20, 100 + 1)
     sample_date_interval = [date(2006, 1, 4), date(2013, 12, 31)]
@@ -17,25 +17,26 @@ def main():
 
     # 1 - 处理数据
     data = DataNode(file_path, stock_name)
-    sample_irange = [np.where(data.trade_date == date)[0][0]
-                     for date in sample_date_interval]
-    train_irange = [np.where(data.trade_date == date)[0][0]
-                    for date in train_date_interval]
+    sample_range = [np.where(data.trade_date == date)[0][0]
+                    for date in sample_date_interval]
+    train_range = [np.where(data.trade_date == date)[0][0]
+                   for date in train_date_interval]
 
     # 2- 模拟交易
     # 2.1 - 在样本区间寻找最佳双均线参数
-    na, day1, day2 = get_optimal_days
+    na, day1, day2 = get_optimal_days(
+        data, sample_range, day1_range, day2_range, init_capital, cr)
     print(
-        f"md1={md1}, md2={md2}, c={c} from {sample_date_interval[0]} to {sample_date_interval[1]}"
+        f"day1 = {day1}, day2 = {day2}, net asset = {na:.3f}, time cost = {time()-s_clk:.3f} s"
     )
-    # md1=7, md2=41, c=7576352.119150016
+    # day1 = 7, day2 = 41, net asset = 7576352.119, time cost = 3.222 s
 
-    # 应用在训练区间
-    c = trade_once(df, md1, md2, init_capital,
-                   init_shares, commission, train_irange)
+    # 2.2 应用在训练区间
+    c, s = trade(data, train_range, [day1, day2],
+                 init_capital, init_shares, cr)
     print(
-        f"capital = {c} from {train_date_interval[0]} to {train_date_interval[1]}")
-    # capital = 1757143.190505008
+        f"net asset = {c+s*data.close[train_range[1]]:.3f} from {train_date_interval[0].isoformat()} to {train_date_interval[1].isoformat()}, time cost = {time()-s_clk:.3f} s")
+    # net asset = 1757143.191 from 2014-01-02 to 2023-08-31, time cost = 3.222 s
 
 
 if __name__ == "__main__":

@@ -10,10 +10,11 @@ from datetime import date
 init_capital = 1e6
 cr = 5e-4
 excel_path = r"./../data/StockData.xlsx"
+stock_code = r"399300"
 date_interval = (date(2006, 1, 4), date(2023, 8, 31))
 
 # 1 - 读取数据
-df = pd.read_excel(excel_path)
+df = pd.read_excel(excel_path, sheet_name=stock_code)
 trade_date = pd.to_datetime(df["Date"].values).date
 open_price = df["Open"].values
 close_price = df["Close"].values
