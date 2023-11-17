@@ -105,7 +105,7 @@ def trade(data: DataNode, index_range, dea1, dea2, _shares, _capital, cr):
     if (not buy_indices) and (not sell_indices):
         return (_capital, _shares)  # 不交易，直接返回
     # 只有买入信号
-    if buy_indices and (not sell_indices):
+    elif buy_indices and (not sell_indices):
         if _shares == 0:  # 如果没有持股，直接买入
             var_price = data.open_price[buy_indices[0]]
             shares = int(_capital * (1 - cr) / var_price)
@@ -114,7 +114,7 @@ def trade(data: DataNode, index_range, dea1, dea2, _shares, _capital, cr):
         else:  # 如果有持股
             return (_capital, _shares)  # 不交易，直接返回
     # 只有卖出信号
-    if (not buy_indices) and sell_indices:
+    elif (not buy_indices) and sell_indices:
         if _shares == 0:  # 无持股，直接返回
             return (_capital, 0)
         else:  # 有持股，卖出一次直接返回
