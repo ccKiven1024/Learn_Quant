@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import openpyxl
 from matplotlib.dates import YearLocator, DateFormatter
 
-from step1 import np, pd, time, date, DataNode, trade, trade1, calculate_max_drawdown, calculate_sharpe_ratio
+from step1 import np, pd, time, date, DataNode, trade1, calculate_max_drawdown, calculate_sharpe_ratio
 from step2 import get_optimal_days
 from step4 import get_first_date_index
 
