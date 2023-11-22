@@ -8,12 +8,19 @@ from time import time
 
 class DataNode:
     def __init__(self, path, code):
-        df = pd.read_excel(path, sheet_name="399300")
+        df = pd.read_excel(path, sheet_name=code)
+        self.name = code
         self.trade_date = pd.to_datetime(df['Date'].values).date
-        self.open_price = df['Open'].values
-        self.close_price = df['Close'].values
+        self.open = df['Open'].values
+        self.close = df['Close'].values
+        self.high = df['High'].values
+        self.low = df['Low'].values
+        self.net_asset = np.zeros_like(self.close)
+
+        # 计算MACD
         self.dif, self.dea, self.hist = talib.MACD(
-            self.close_price, fastperiod=12, slowperiod=26, signalperiod=9)
+            self.close, fastperiod=12, slowperiod=26, signalperiod=9)
+        # 判断金叉/死叉
         self.gold_cross = np.where(
             (self.hist[:-1] < 0) & (self.hist[1:] > 0))[0] + 1
         self.dead_cross = np.where(
@@ -107,8 +114,8 @@ def trade(data: DataNode, boundary, dea1, dea2, _shares, _capital, cr):
     # 只有买入信号
     elif buy_indices and (not sell_indices):
         if _shares == 0:  # 如果没有持股，直接买入
-            var_price = data.open_price[buy_indices[0]]
-            shares = int(_capital * (1 - cr) / var_price)
+            var_price = data.open[buy_indices[0]]
+            shares = _capital * (1 - cr) // var_price
             capital = _capital - shares * var_price * (1 + cr)
             return (capital, shares)
         else:  # 如果有持股
@@ -118,7 +125,7 @@ def trade(data: DataNode, boundary, dea1, dea2, _shares, _capital, cr):
         if _shares == 0:  # 无持股，直接返回
             return (_capital, 0)
         else:  # 有持股，卖出一次直接返回
-            var_price = data.open_price[sell_indices[0]]
+            var_price = data.open[sell_indices[0]]
             capital = _capital + _shares * var_price * (1 - cr)
             return (capital, 0)
 
@@ -130,40 +137,180 @@ def trade(data: DataNode, boundary, dea1, dea2, _shares, _capital, cr):
     if sell_indices[0] < buy_indices[0]:  # 如果第一个是卖出信号
         # 若持仓，执行一次卖出
         if shares > 0:
-            var_price = data.open_price[sell_indices[0]]
+            var_price = data.open[sell_indices[0]]
             capital += shares * var_price * (1 - cr)
             shares = 0
         # 若不持仓，可以跳过无意义的0持仓卖出
         sell_indices = sell_indices[1:]  # 去掉第一个卖出信号
 
         if not sell_indices:  # 如果没有卖出信号了，由于存在买入信号，那么买入
-            var_price = data.open_price[buy_indices[0]]
-            shares = int(capital * (1 - cr) / var_price)
+            var_price = data.open[buy_indices[0]]
+            shares = capital * (1 - cr) // var_price
             capital -= shares * var_price * (1 + cr)
             return (capital, shares)
 
     for bi, si in zip(buy_indices, sell_indices):
         # 买入
-        var_price = data.open_price[bi]
-        shares = int(capital * (1 - cr) / var_price)
+        var_price = data.open[bi]
+        shares = capital * (1 - cr) // var_price
         capital -= shares * var_price * (1 + cr)
         # 卖出
-        var_price = data.open_price[si]
+        var_price = data.open[si]
         capital += shares * var_price * (1 - cr)
         shares = 0
 
     # 可能还有一个买入信号未处理
     if buy_indices[-1] > sell_indices[-1]:
-        var_price = data.open_price[buy_indices[-1]]
-        shares = int(capital * (1 - cr) / var_price)
+        var_price = data.open[buy_indices[-1]]
+        shares = capital * (1 - cr) // var_price
         capital -= shares * var_price * (1 + cr)
 
     return (capital, shares)
 
 
+def trade1(d: DataNode, boundary, dea1, dea2, _shares, _capital, cr):
+    # 计算交易信号
+    buy_indices, sell_indices = calculate_trade_signals(
+        d, boundary, dea1, dea2, _shares)
+
+    # 模拟交易
+    r = []  # records
+    bi, si = 0, 0
+    ibegin, iend = boundary
+    iend += 1  # 使其不可达
+
+    # 存在交易信号为空时
+    # 既没有买入信号，也没有卖出信号
+    if (not buy_indices) and (not sell_indices):
+        d.net_asset[ibegin:iend] = _capital + \
+            _shares * d.close[ibegin:iend]
+        return (_capital, _shares, r)
+    # 只有买入信号
+    elif buy_indices and (not sell_indices):
+        if _shares == 0:  # 如果没有持股
+            bi = buy_indices[0]
+            # 在[ibegin,bi)之间无持仓
+            d.net_asset[ibegin:bi] = _capital
+            # 买入
+            var_price = d.open[bi]
+            shares = _capital * (1 - cr) // var_price
+            capital = _capital - shares * var_price * (1 + cr)
+            r.append((d.trade_date[bi].isoformat(),
+                     1, var_price, shares, capital))
+            # 在[bi,iend)之间持仓
+            d.net_asset[bi:iend] = capital + shares * d.close[bi:iend]
+            return (capital, shares, r)
+        else:  # 如果有持股，不买入，即 无操作
+            d.net_asset[ibegin:iend] = _capital
+            return (_capital, _shares, r)
+    # 只有卖出信号
+    elif (not buy_indices) and sell_indices:
+        if _shares == 0:  # 无持股，不卖出，即 无操作
+            d.net_asset[ibegin:iend] = _capital
+            return (_capital, _shares, r)
+        else:  # 有持股
+            si = sell_indices[0]
+            # 在[ibegin,si)之间持仓
+            d.net_asset[ibegin:si] = _capital + _shares * d.close[ibegin:si]
+            # 卖出
+            var_price = d.open[si]
+            capital = _capital + _shares * var_price * (1 - cr)
+            r.append((d.trade_date[si].isoformat(), -1, var_price, 0, capital))
+            # 在[si,iend)之间无持仓
+            d.net_asset[si:iend] = capital
+            return (capital, 0, r)
+
+    # 既有买入信号，也有卖出信号
+    capital = _capital
+    shares = _shares
+    var_price = 0.0
+    if sell_indices[0] < buy_indices[0]:  # 如果第一个是卖出信号
+        if shares > 0:  # 若持仓
+            si = sell_indices[0]
+            # 在[ibegin,si)之间持仓
+            d.net_asset[ibegin:si] = capital + shares * d.close[ibegin:si]
+            # 卖出
+            var_price = d.open[si]
+            capital += shares * var_price * (1 - cr)
+            shares = 0
+            r.append((d.trade_date[si].isoformat(), -1, var_price, 0, capital))
+        # 去掉第一个卖出信号
+        sell_indices = sell_indices[1:]
+
+        if not sell_indices:  # 如果没有卖出信号了，由于存在买入信号，那么买入
+            bi = buy_indices[0]
+            # 在[ibegin,bi)之间无持仓
+            d.net_asset[ibegin:bi] = capital
+            # 买入
+            var_price = d.open[bi]
+            shares = capital * (1 - cr) // var_price
+            capital -= shares * var_price * (1 + cr)
+            r.append((d.trade_date[bi].isoformat(),
+                     1, var_price, shares, capital))
+            # 在[bi,iend)之间持仓
+            d.net_asset[bi:iend] = capital + shares * d.close[bi:iend]
+            return (capital, shares, r)
+
+    lai = max(ibegin, si)  # last action index
+    for b, s in zip(buy_indices, sell_indices):
+        # 在[lai,b)之间无持仓
+        d.net_asset[lai:b] = capital
+        # 买入
+        var_price = d.open[b]
+        shares = capital * (1 - cr) // var_price
+        capital -= shares * var_price * (1 + cr)
+        r.append((d.trade_date[b].isoformat(), 1, var_price, shares, capital))
+
+        # 在[b,s)之间持仓
+        d.net_asset[b:s] = capital + shares * d.close[b:s]
+        # 卖出
+        var_price = d.open[s]
+        capital += shares * var_price * (1 - cr)
+        shares = 0
+        r.append((d.trade_date[s].isoformat(), -1, var_price, 0, capital))
+
+        lai = s
+
+    if buy_indices[-1] > sell_indices[-1]:  # 可能还有一个买入信号未处理
+        bi = buy_indices[-1]
+        # 在[lai,bi)之间无持仓
+        d.net_asset[lai:bi] = capital
+        # 买入
+        var_price = d.open[bi]
+        shares = capital * (1 - cr) // var_price
+        capital -= shares * var_price * (1 + cr)
+        r.append((d.trade_date[bi].isoformat(), 1, var_price, shares, capital))
+        # 在[bi,iend)之间持仓
+        d.net_asset[bi:iend] = capital + shares * d.close[bi:iend]
+    else:  # 买入/卖出信号 刚刚好成对用完
+        # [lai:iend)之间无持仓
+        d.net_asset[lai:iend] = capital
+
+    return (capital, shares, r)
+
+
+def calculate_max_drawdown(data: DataNode, boundary):
+    ibegin, iend = boundary
+    peek_index = ibegin
+    md = (data.high[ibegin]-data.low[ibegin])/data.low[ibegin]
+    for i in range(ibegin, iend+1):
+        if data.high[i] > data.high[peek_index]:
+            peek_index = i
+        md = max(md, (data.high[peek_index]-data.low[i])/data.low[i])
+    return md
+
+
+def calculate_sharpe_ratio(data: DataNode, boundary, final_yield, rf=3e-2):
+    # 默认无风险利率rf为3%，即银行活期利率
+    ibegin, iend = boundary
+    daily_return = np.diff(
+        data.close[ibegin-1:iend+1])/data.close[ibegin:iend+1]
+    return (final_yield - rf)/daily_return.std()
+
+
 def func(data: DataNode, boundary, dea1, dea2, _shares, _capital, cr):
     c, s = trade(data, boundary, dea1, dea2, _shares, _capital, cr)
-    na = c + s * data.close_price[boundary[1]]
+    na = c + s * data.close[boundary[1]]
     return (na, dea1, dea2)
 
 

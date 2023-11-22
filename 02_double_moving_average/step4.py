@@ -11,23 +11,24 @@ def main():
 
     # 0 - 题目数据
     file_path = r"./../data/StockData.xlsx"
-    stock_name = r"399300"
+    stock_code = r"399300"
     init_capital = 1e6
     init_shares = 0
     cr = 5e-4
-    day1_range = range(1, 15 + 1)
-    day2_range = range(20, 100 + 1)
     sample_date_interval = [date(2006, 1, 4), date(2013, 12, 31)]
     train_date_interval = [date(2014, 1, 2), date(2023, 8, 31)]
     sliding_years = 1  # 滑动年数
+    day1_range = range(1, 15 + 1)
+    day2_range = range(20, 100 + 1)
 
     # 1 - 处理数据
-    data = DataNode(file_path, stock_name)
+    data = DataNode(file_path, stock_code)
     start_year, end_year = [d.year for d in train_date_interval]
     window_years = start_year - sample_date_interval[0].year  # 窗口长度，单位为年
     sample_range = [np.where(data.trade_date == d)[0][0]
                     for d in sample_date_interval]
 
+    # 2 - 模拟交易
     capital = init_capital
     shares = init_shares
     for y in range(start_year, end_year):
@@ -48,7 +49,9 @@ def main():
     y = end_year
     s_na, day1, day2 = get_optimal_days(
         data, sample_range, day1_range, day2_range, init_capital, cr)
-    train_boundary = [sample_range[1] + 1, data.open.shape[0]-1]
+    train_boundary[0] = sample_range[1] + 1
+    train_boundary[1] = np.where(
+        data.trade_date == train_date_interval[1])[0][0]
     capital, shares = trade(data, train_boundary, [
                             day1, day2], capital, shares, cr)
     net_asset = capital + shares*data.close[train_boundary[1]]

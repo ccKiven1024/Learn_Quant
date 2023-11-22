@@ -23,7 +23,7 @@ def main():
 
     # 0 - 题目数据
     file_path = r"./../data/StockData.xlsx"
-    stock_name = r"399300"
+    stock_code = r"399300"
     init_capital = 1e6
     commission = 5e-4
     date_interval = [date(2006, 1, 4), date(2023, 8, 31)]
@@ -31,7 +31,7 @@ def main():
     day2_range = range(20, 100 + 1)
 
     # 1 - 处理数据
-    data = DataNode(file_path, stock_name)
+    data = DataNode(file_path, stock_code)
     boundary = list(map(lambda d: np.where(
         data.trade_date == d)[0][0], date_interval))
 

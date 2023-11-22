@@ -6,17 +6,17 @@ def main():
 
     # 0 - 题目数据
     file_path = r"./../data/StockData.xlsx"
-    stock_name = r"399300"
+    stock_code = r"399300"
     init_capital = 1e6
     init_shares = 0
     cr = 5e-4
-    day1_range = range(1, 15 + 1)
-    day2_range = range(20, 100 + 1)
     sample_date_interval = [date(2006, 1, 4), date(2013, 12, 31)]
     train_date_interval = [date(2014, 1, 2), date(2023, 8, 31)]
+    day1_range = range(1, 15 + 1)
+    day2_range = range(20, 100 + 1)
 
     # 1 - 处理数据
-    data = DataNode(file_path, stock_name)
+    data = DataNode(file_path, stock_code)
     sample_range = [np.where(data.trade_date == date)[0][0]
                     for date in sample_date_interval]
     train_range = [np.where(data.trade_date == date)[0][0]

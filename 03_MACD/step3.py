@@ -29,7 +29,7 @@ def main():
     start_year, end_year = [date.year for date in test_interval]
     window_yrs = start_year - train_interval[0].year
 
-    # 2 模拟交易
+    # 2 -  模拟交易
     capital = init_capital
     shares = init_shares
     for y in range(start_year, end_year):
@@ -41,7 +41,7 @@ def main():
                                 dea2, shares, capital, cr)
 
         print(
-            f"year: {y}, dea1 = {dea1}, dea2 = {dea2}, capital = {capital:.3f}, shares = {shares}, net_asset = {capital+shares*data.close_price[test_range[1]]:.3f}, time cost = {time()-s_clk:.3f} s")
+            f"year: {y}, dea1 = {dea1}, dea2 = {dea2}, capital = {capital:.3f}, shares = {shares}, net_asset = {capital+shares*data.close[test_range[1]]:.3f}, time cost = {time()-s_clk:.3f} s")
 
         sample_range = [get_first_date_index(
             data.trade_date, y-window_yrs+1), test_range[1]]
@@ -53,7 +53,7 @@ def main():
     test_range = [sample_range[1]+1, data.trade_date.shape[0]-1]
     capital, shares = trade(data, test_range, dea1, dea2, shares, capital, cr)
     print(
-        f"year: {y}, dea1 = {dea1}, dea2 = {dea2}, capital = {capital:.3f}, shares = {shares}, net_asset = {capital+shares*data.close_price[test_range[1]]:.3f}, time cost = {time()-s_clk:.3f} s")
+        f"year: {y}, dea1 = {dea1}, dea2 = {dea2}, capital = {capital:.3f}, shares = {shares}, net_asset = {capital+shares*data.close[test_range[1]]:.3f}, time cost = {time()-s_clk:.3f} s")
 
 
 if __name__ == "__main__":

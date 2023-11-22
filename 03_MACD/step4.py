@@ -44,7 +44,7 @@ def main():
         capital, shares = trade(data, test_range, dea1,
                                 dea2, shares, capital, cr)
         print(
-            f"window_size = {window_size}, net asset = {capital+shares*data.close_price[test_range[1]]:.3f}, time cost = {time()-s_clk:.3f} s")
+            f"window_size = {window_size}, net asset = {capital+shares*data.close[test_range[1]]:.3f}, time cost = {time()-s_clk:.3f} s")
 
 
 if __name__ == "__main__":
