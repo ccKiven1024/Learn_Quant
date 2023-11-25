@@ -289,23 +289,16 @@ def trade1(d: DataNode, boundary, dea1, dea2, _shares, _capital, cr):
     return (capital, shares, r)
 
 
-def calculate_max_drawdown(data: DataNode, boundary):
-    ibegin, iend = boundary
-    peek_index = ibegin
-    md = (data.high[ibegin]-data.low[ibegin])/data.low[ibegin]
-    for i in range(ibegin, iend+1):
-        if data.high[i] > data.high[peek_index]:
-            peek_index = i
-        md = max(md, (data.high[peek_index]-data.low[i])/data.low[i])
-    return md
+def calculate_max_drawdown(net_asset):
+    net_value = net_asset/net_asset[0]
+    max_net_value = np.maximum.accumulate(net_value)
+    drawdown = (max_net_value - net_value)/max_net_value
+    return np.max(drawdown)
 
 
-def calculate_sharpe_ratio(data: DataNode, boundary, final_yield, rf=3e-2):
+def calculate_sharpe_ratio(year_yield, rf=3e-2):
     # 默认无风险利率rf为3%，即银行活期利率
-    ibegin, iend = boundary
-    daily_return = np.diff(
-        data.close[ibegin-1:iend+1])/data.close[ibegin:iend+1]
-    return (final_yield - rf)/daily_return.std()
+    return (np.mean(year_yield) - rf)/np.std(year_yield)
 
 
 def func(data: DataNode, boundary, dea1, dea2, _shares, _capital, cr):
