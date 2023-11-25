@@ -65,8 +65,9 @@ def main():
     figure_path = r"./../result/figures/03case1.png"
     # 3.1 - 基本信息：最终收益、最大回撤、夏普比率、程序用时
     final_yield = data.net_asset[iend]/init_capital - 1
-    max_drawdown = calculate_max_drawdown(data, [ibegin, iend])
-    sharpe_ratio = calculate_sharpe_ratio(data, [ibegin, iend], final_yield)
+    max_drawdown = calculate_max_drawdown(data.net_asset[ibegin:iend+1])
+    sharpe_ratio = calculate_sharpe_ratio(
+        data.close[ibegin:iend+1], final_yield)
     df1 = pd.DataFrame({
         "Trade Span": [train_date_interval[0].isoformat()+" - "+train_date_interval[1].isoformat()],
         "Final Yield": [final_yield],
@@ -90,16 +91,21 @@ def main():
         # last date index in one year
         ldi = get_first_date_index(data.trade_date, y+1)-1
         i = y-start_year+1
-        year_list[i] = data.trade_date[ldi].isoformat()
+        year_list[i] = data.trade_date[ldi]
         year_na[i] = data.net_asset[ldi]
-        year_yield[i] = year_na[i]/year_na[i-1]-1
-        acy_list[i] = (1+year_yield[i])**(1/i)-1
+        ratio = 365/((year_list[i]-year_list[i-1]).days+1)  # 一年的总日数/实际交易的跨度
+        year_yield[i] = (year_na[i]/year_na[i-1]-1) * ratio
+
+        acy_list[i] = (year_na[i]/init_capital)**(1/i)-1
 
     year_list[-1] = train_date_interval[1].isoformat()
     year_na[-1] = data.net_asset[iend]
-    year_yield[-1] = year_na[-1]/year_na[-2]-1
-    time_span = (train_date_interval[1]-train_date_interval[0]).days/365.25
-    acy_list[-1] = (1+year_yield[-1])**(1/time_span)-1
+    # 由于不是完整一年，这里用比例换算
+    span1 = (data.trade_date[train_range[1]] -
+             data.trade_date[train_range[0]]).days/365
+    year_yield[-1] = (year_na[-1]/year_na[-2]-1)/span1
+    span2 = (train_date_interval[1]-train_date_interval[0]).days/365
+    acy_list[-1] = (1+year_yield[-1])**(1/span2)-1
 
     df2 = pd.DataFrame({
         "Year": year_list,
