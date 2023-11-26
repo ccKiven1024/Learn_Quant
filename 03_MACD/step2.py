@@ -289,8 +289,8 @@ def trade1(d: DataNode, boundary, dea1, dea2, _shares, _capital, cr):
     return (capital, shares, r)
 
 
-def calculate_max_drawdown(net_asset):
-    net_value = net_asset/net_asset[0]
+def calculate_max_drawdown(na_arr):
+    net_value = na_arr/na_arr[0]
     max_net_value = np.maximum.accumulate(net_value)
     drawdown = (max_net_value - net_value)/max_net_value
     return np.max(drawdown)
