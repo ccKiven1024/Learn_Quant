@@ -16,23 +16,32 @@ def main():
     init_capital = 1e6
     init_shares = 0
     cr = 5e-4
-    sample_date_interval = [date(2005, 1, 4), date(2013, 12, 31)]
-    train_date_interval = [date(2014, 1, 2), date(2023, 10, 31)]
+    sample_interval = [date(2005, 1, 4), date(2013, 12, 31)]
+    train_interval = [date(2014, 1, 2), date(2023, 10, 31)]
     day1_range = range(1, 15 + 1)
     day2_range = range(20, 100 + 1)
 
     # 1 - 处理数据
     data = DataNode(file_path, stock_code)
-    start_year, end_year = [d.year for d in train_date_interval]
-    window_years = start_year - sample_date_interval[0].year  # 窗口长度，单位为年
+    start_year, end_year = [d.year for d in train_interval]
+    window_years = start_year - sample_interval[0].year  # 窗口长度，单位为年
     sample_range = [np.where(data.trade_date == d)[0][0]
-                    for d in sample_date_interval]
+                    for d in sample_interval]
     ibegin = sample_range[1]+1
 
     # 2 - 模拟交易
     capital = init_capital
     shares = init_shares
     records = []
+
+    length = end_year - start_year+2
+    year_interval = [None]*length
+    year_na = [0.0]*length  # year net asset list
+    year_yield = [0.0]*length
+
+    year_interval[0] = sample_interval[1]
+    year_na[0] = init_capital
+
     for y in range(start_year, end_year):
         s_na, day1, day2 = get_optimal_days(
             data, sample_range, day1_range, day2_range, init_capital, cr)
@@ -41,12 +50,19 @@ def main():
         capital, shares, record = trade1(data, train_range, [
             day1, day2], capital, shares, cr)
         records.extend(record)
-        na = capital + shares*data.close[train_range[1]]
+        # 记录年度信息
+        i = y-start_year+1
+        year_interval[i] = data.trade_date[train_range[1]]
+        year_na[i] = data.net_asset[train_range[1]]
+        year_yield[i] = year_na[i]/year_na[i-1]-1
         print(
-            f"sample year: {y-window_years}-{y-1}, day1 = {day1}, day2 = {day2}, net asset = {s_na:.3f}\ntrain year: {y}, capital = {capital:.3f}, shares = {shares}, net_asset = {na:.3f}\nTime Cost = {time()-s_clk:.3f} s"
+            f"sample year: {y-window_years}-{y-1}, day1 = {day1}, day2 = {day2}, net asset = {s_na:.3f}\ntrain year: {y}, capital = {capital:.3f}, shares = {shares}, net_asset = {year_na[i]:.3f}\nTime Cost = {time()-s_clk:.3f} s"
         )
         sample_range = [get_first_date_index(
             data.trade_date, y-window_years+1), train_range[1]]
+
+    # 由于训练集的第一年不满一年，这里作以修正
+    year_yield[1] = (1+year_yield[1])**(365/364) - 1  # 训练年份的第一年的跨度为364天
 
     # 处理最后一年
     y = end_year
@@ -54,61 +70,42 @@ def main():
         data, sample_range, day1_range, day2_range, init_capital, cr)
     train_range[0] = sample_range[1] + 1
     iend = train_range[1] = np.where(
-        data.trade_date == train_date_interval[1])[0][0]
+        data.trade_date == train_interval[1])[0][0]
     capital, shares, record = trade1(data, train_range, [
         day1, day2], capital, shares, cr)
     records.extend(record)
-    na = capital + shares*data.close[train_range[1]]
+    # 记录年度信息
+    year_interval[-1] = data.trade_date[iend]
+    year_na[-1] = data.net_asset[iend]
+    ratio = 365/((train_interval[1]-date(2023, 1, 1)).days+1)
+    year_yield[-1] = (year_na[-1]/year_na[-2]) ** ratio - 1
     print(
-        f"sample year: {y-window_years}-{y-1}, day1 = {day1}, day2 = {day2}, net asset = {s_na:.3f}\ntrain time: {data.trade_date[train_range[0]].isoformat()}-{train_date_interval[1].isoformat()}, capital = {capital:.3f}, shares = {shares}, net_asset = {na:.3f}\nTime Cost = {time()-s_clk:.3f} s"
+        f"sample year: {y-window_years}-{y-1}, day1 = {day1}, day2 = {day2}, net asset = {s_na:.3f}\ntrain time: {data.trade_date[train_range[0]].isoformat()}-{train_interval[1].isoformat()}, capital = {capital:.3f}, shares = {shares}, net_asset = {year_na[-1]:.3f}\nTime Cost = {time()-s_clk:.3f} s"
     )
 
     # 3 - 保存结果
     result_path = r"./../result/02case1.xlsx"
     figure_path = r"./../result/figures/02case1.png"
+    iend1 = iend+1  # 使iend不可达，方便后续切片
+
     # 3.1 - 基本信息：最终收益、最大回撤、夏普比率、程序用时
-    final_yield = na/init_capital - 1
-    md = calculate_max_drawdown(data, [ibegin, iend])
-    sharpe_ratio = calculate_sharpe_ratio(data, [ibegin, iend], final_yield)
+    final_yield = data.net_asset[iend]/init_capital - 1
+    max_drawdown = calculate_max_drawdown(data.net_asset[ibegin:iend1])
+    sharpe_ratio = calculate_sharpe_ratio(year_yield[1:])
     df1 = pd.DataFrame({
-        "Trade Time": [train_date_interval[0].isoformat()+" - "+train_date_interval[1].isoformat()],
+        "Trade Span": [train_interval[0].isoformat()+" - "+train_interval[1].isoformat()],
         "Final Yield": [final_yield],
-        "Max Drawdown": [md],
+        "Max Drawdown": [max_drawdown],
         "Sharpe Ratio": [sharpe_ratio],
         "Time Cost (s)": [0]
     })
     print(f"Generating basic information cost {time()-s_clk:.3f} s")
 
     # 3.2 - 年度收益率，年化收益率
-    length = end_year-start_year+2
-    year_list = [None]*length
-    year_na = [0.0]*length
-    year_yield = [0.0]*length
-    acy_list = [0.0]*length  # annual compound yield list
-
-    year_list[0] = train_date_interval[0].isoformat()
-    year_na[0] = data.net_asset[ibegin]
-
-    for y in range(start_year, end_year):
-        # last date index in one year
-        ldi = get_first_date_index(data.trade_date, y+1)-1
-        i = y-start_year+1
-        year_list[i] = data.trade_date[ldi].isoformat()
-        year_na[i] = data.net_asset[ldi]
-        year_yield[i] = year_na[i]/year_na[i-1]-1
-        acy_list[i] = (1+year_yield[i])**(1/i)-1
-
-    year_list[-1] = train_date_interval[1].isoformat()
-    year_na[-1] = data.net_asset[iend]
-    year_yield[-1] = year_na[-1]/year_na[-2]-1
-    time_span = (train_date_interval[1]-train_date_interval[0]).days/365.25
-    acy_list[-1] = (1+final_yield)**(1/time_span)-1
-
     df2 = pd.DataFrame({
-        "Year": year_list,
+        "Year": [d.isoformat() for d in year_interval],  # 将日期转换为字符串
         "Net Asset": year_na,
-        "Year Yield": year_yield,
-        "Annual Compound Yield": acy_list
+        "Year Yield": year_yield
     })
     print(f"Generating annual yield cost {time()-s_clk:.3f} s")
 
