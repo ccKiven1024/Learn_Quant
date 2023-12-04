@@ -74,7 +74,7 @@ def trade(data: DataNode, boundary, day_set, _capital, _shares, cr):
         if _shares == 0:
             var_price = data.open[buy_indices[0]]
             shares = _capital*(1-cr)//var_price
-            capital = _capital - shares*var_price(1+cr)
+            capital = _capital - shares*var_price*(1+cr)
             return (capital, shares)
         else:
             return (_capital, _shares)
@@ -148,7 +148,7 @@ def trade1(d: DataNode, boundary, day_set, _capital, _shares, cr):
             # 买入
             var_price = d.open[bi]
             shares = _capital*(1-cr)//var_price
-            capital = _capital - shares*var_price(1+cr)
+            capital = _capital - shares*var_price*(1+cr)
             r.append(
                 (d.trade_date[bi].isoformat(), 1, var_price, shares, capital))
             # [bi,iend)之间，有持仓
