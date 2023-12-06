@@ -61,9 +61,9 @@ if __name__ == "__main__":
     main()
 
 """
-window_month = 1, net asset = 1431529.198, year compound = 3.748%, time cost = 253.620 s
-window_month = 3, net asset = 1554745.879, year compound = 4.755%, time cost = 335.256 s
-window_month = 6, net asset = 1513467.982, year compound = 4.712%, time cost = 374.124 s
+window_month = 1, net asset = 1382362.392, year compound = 3.377%, time cost = 292.635 s
+window_month = 3, net asset = 1438396.037, year compound = 3.901%, time cost = 387.461 s
+window_month = 6, net asset = 1396595.829, year compound = 3.781%, time cost = 432.433 s
 
 此外，发现一个很明显的问题：
 ma被重复计算了多次，可以考虑将ma的计算结果保存起来，避免重复计算
