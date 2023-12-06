@@ -56,7 +56,7 @@ def main():
             # 更新参数
             d1 = d1+relativedelta(months=step)
             d2 = d2+relativedelta(months=step)
-            train_range = [get_last_index(date_arr, d1)+1, test_range[1]+1]
+            train_range = [get_last_index(date_arr, d1)+1, test_range[1]]
 
         na = capital+shares*data.close[test_range[1]]
         year_compound = (na/init_capital)**(12/(step*(i+1)))-1
