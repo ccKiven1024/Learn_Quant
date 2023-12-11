@@ -1,6 +1,6 @@
 from dateutil.relativedelta import relativedelta
 
-from step1 import np, time, date, DataNode, trade
+from step1 import pd, np, time, date, DataNode, trade, trade1
 from step2 import get_optimal_days
 
 
@@ -29,6 +29,31 @@ def main():
     delta = relativedelta(test_interval[1], test_interval[0])
     month_difference = delta.years * 12 + delta.months+1
 
+    step = 1
+    train_range = list(map(lambda d: np.where(
+        data.trade_date == d)[0][0], train_interval))
+    d1 = train_interval[0]-relativedelta(days=4)  # 2004-12-31
+    # 2013-012-31 + setp month
+    d2 = train_interval[1]+relativedelta(months=step)
+
+    # 13 train: 2006-02-06 - 2015-01-30
+    # 13 test: 2015-02-02 - 2015-02-27
+    # short=3, long =9, net_asset = 8032873.238
+
+    d1 = date(2006, 2, 6)
+    d2 = date(2015, 1, 30)
+    train_range = list(map(lambda d: np.where(
+        data.trade_date == d)[0][0], [d1, d2]))
+    short = 3
+    long = 9
+    c, s, r = trade1(data, train_range, (short, long),
+                     init_capital, init_shares, cr)
+    df1 = pd.DataFrame(
+        r, columns=["date", "b/s", "price", "shares", "capital"])
+    result_path = r"./../../108-1-13.xlsx"
+    df1.to_excel(result_path, index=True)
+
+    return
     # 2 - 模拟交易
     for step in sliding_step:
         # 初始化参数
@@ -38,6 +63,7 @@ def main():
         # 2013-012-31 + setp month
         d2 = train_interval[1]+relativedelta(months=step)
 
+        print(f"short long net_asset")
         capital = init_capital
         shares = init_shares
         for i in range(month_difference//step-1):
@@ -50,6 +76,7 @@ def main():
             d1 = d1+relativedelta(months=step)
             d2 = d2+relativedelta(months=step)
             train_range = [get_last_index(date_arr, d1)+1, test_range[1]]
+            print(f"{short:>{5}} {long:>{4}} {sna:.3f}")
 
         na = capital+shares*data.close[test_range[1]]
         year_compound = (na/init_capital)**(12/(step*(i+1)))-1
