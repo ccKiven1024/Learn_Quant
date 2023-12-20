@@ -5,40 +5,35 @@ from datetime import date
 
 
 class DataNode:
-    def __init__(self, path, code):
+    def __init__(self, path, code, cr, short_range: np.ndarray, long_range: np.ndarray):
+        self.stock_code = code
+        self.cr = cr
+        self.short_range = short_range
+        self.long_range = long_range
+
         df = pd.read_excel(path, sheet_name=code)
-        self.name = code
         self.trade_date = pd.to_datetime(df['Date'].values).date
         self.open = df['Open'].values
         self.close = df['Close'].values
-        self.high = df['High'].values
-        self.low = df['Low'].values
-        self.net_asset = np.zeros_like(self.open, dtype=np.float32)
+        self.net_asset = np.zeros_like(self.open, dtype=np.float64)
+
+        m = self.close.shape[0]
+        n1, n2 = short_range.shape[0], long_range.shape[0]
+        self.ma_short = np.zeros(shape=(m, n1), dtype=np.float64)
+        self.ma_long = np.zeros(shape=(m, n2), dtype=np.float64)
+        for i in range(n1):
+            self.ma_short[:, i] = df['Close'].rolling(
+                short_range[i]).mean()
+        for i in range(n2):
+            self.ma_long[:, i] = df['Close'].rolling(long_range[i]).mean()
 
 
-def rolling_mean(arr, window):
-    conv_kernel = np.ones(window)
-    return np.convolve(arr, conv_kernel, 'valid')/window
-
-
-def calculate_ma(data: DataNode, boundary, day_set):
-    """
-    计算必要的均线：
-    由于numpy没有series的rolling方法，如果用for循环，效率不高
-    这里用全1数组卷积，等价于求和，最后除以窗口大小，得到均值
-    """
-    ibegin, iend = boundary
-    ma = np.zeros(shape=(data.open.shape[0], len(day_set)), dtype=np.float64)
-    for i in range(len(day_set)):
-        ma[ibegin-1:iend+1,  i] = rolling_mean(
-            data.close[ibegin-day_set[i]:iend+1], day_set[i])
-    return ma
-
-
-def calculate_trade_signals(boundary, ma, _shares):
-    dif = ma[:, 0] - ma[:, 1]
-    buy_indices = np.where((dif[:-1] < 0) & (dif[1:] > 0))[0]+2
-    sell_indices = np.where((dif[:-1] > 0) & (dif[1:] < 0))[0]+2
+def calculate_trade_signals(data, boundary, day_set, _shares):
+    i = np.searchsorted(data.short_range, day_set[0])
+    j = np.searchsorted(data.long_range, day_set[1])
+    dif = data.ma_short[:, i] - data.ma_long[:, j]
+    buy_indices = np.where((dif[:-1] <= 0) & (dif[1:] > 0))[0]+2
+    sell_indices = np.where((dif[:-1] >= 0) & (dif[1:] < 0))[0]+2
 
     # 剪枝
     ibegin, iend = boundary
@@ -59,11 +54,12 @@ def calculate_trade_signals(boundary, ma, _shares):
     return buy_indices, sell_indices
 
 
-def trade(data: DataNode, boundary, day_set, _capital, _shares, cr):
-    # 计算双均线
-    ma = calculate_ma(data, boundary, day_set)
+def trade(data: DataNode, boundary, day_set, _capital, _shares):
+    cr = data.cr
+
     # 计算交易信号
-    buy_indices, sell_indices = calculate_trade_signals(boundary, ma, _shares)
+    buy_indices, sell_indices = calculate_trade_signals(
+        data, boundary, day_set, _shares)
 
     # 模拟交易
     # 既无买入信号，也无卖出信号
@@ -123,11 +119,12 @@ def trade(data: DataNode, boundary, day_set, _capital, _shares, cr):
     return (capital, shares)
 
 
-def trade1(d: DataNode, boundary, day_set, _capital, _shares, cr):
-    # 计算双均线
-    ma = calculate_ma(d, boundary, day_set)
+def trade1(d: DataNode, boundary, day_set, _capital, _shares):
+    cr = d.cr
+
     # 计算交易信号
-    buy_indices, sell_indices = calculate_trade_signals(boundary, ma, _shares)
+    buy_indices, sell_indices = calculate_trade_signals(
+        d, boundary, day_set, _shares)
 
     # 模拟交易
     r = []  # records
@@ -264,22 +261,24 @@ def main():
     s_clk = time()
 
     # 0 - 题目数据
-    file_path = r"./data/StockData.xlsx"
+    file_path = r"./../data/StockData.xlsx"
     stock_name = r'399300'
     init_capital = 1e6
     init_shares = 0
     cr = 5e-4
     date_interval = (date(2006, 1, 4), date(2023, 8, 31))
+    short_range = np.array([5])
+    long_range = np.array([20])
     day_set = (5, 20)
 
     # 1 - 处理数据
-    data = DataNode(file_path, stock_name)
+    data = DataNode(file_path, stock_name, cr, short_range, long_range)
     boundary = list(map(lambda date: np.where(
         data.trade_date == date)[0][0], date_interval))
 
     # 2 - 模拟交易
     capital, shares = trade(data, boundary, day_set,
-                            init_capital, init_shares, cr)
+                            init_capital, init_shares)
     final_net_asset = capital+shares*data.close[-1]
     print(
         f"net asset = {final_net_asset:.3f}, cost time = {time()-s_clk:.3f} s")
