@@ -60,7 +60,7 @@ def main():
         shares = init_shares
         records = []
         iter_num = month_difference//step
-        for i in range(month_difference//step-1):
+        for i in range(iter_num-1):
             # 训练
             sna, short, long = get_optimal_days(
                 data, train_range, init_capital)
