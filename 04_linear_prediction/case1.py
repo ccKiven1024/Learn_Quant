@@ -17,7 +17,8 @@ def main():
     test_interval = [date(2014, 1, 2), date(2023, 10, 31)]
     sliding_step = [1, 3, 6]  # 单位为月
     md_set = np.array([3, 8, 21])  # 均线天数
-    fd_arr = np.array([1, 2, 5])  # 预测所需天数
+    fd_arr = np.array([1, 2, 5])  # 预测未来第几天
+    ud = 5  # 用到的天数
 
     # 1 - 处理数据
     data = Data(file_path, stock_code, cr, md_set)
@@ -39,7 +40,8 @@ def main():
             # 初始化参数
             train_range = [np.where(data.trade_date == d)[0][0]
                            for d in train_interval]
-            train_list[0] = data.scope2str(train_range)  # 保存训练区间
+            if train_list[0] != "":
+                train_list[0] = data.scope2str(train_range)  # 保存训练区间
             tw_pre = np.searchsorted(
                 data.ld, train_interval[0])-1  # 训练区间起始位置在ld中的索引减1
             tw_end = np.searchsorted(
@@ -47,15 +49,16 @@ def main():
 
             for j in range(iter_num-1):
                 # 划分输入和输出集
-                x_train = data.get_input(fd, train_range)
+                x_train = data.get_input(train_range, fd, ud)
                 y_train = data.close[train_range[0]:train_range[1]+1]
                 # 训练
                 model.fit(x_train, y_train)
                 # print(model.coef_, model.intercept_)
                 # 测试
                 test_range = [train_range[1]+1, data.ldi[tw_end]]
-                test_list[j] = data.scope2str(test_range)  # 保存测试区间
-                x_test = data.get_input(fd, test_range)
+                if test_list[j] != "":
+                    test_list[j] = data.scope2str(test_range)  # 保存测试区间
+                x_test = data.get_input(test_range, fd, ud)
                 y_pred = model.predict(x_test)
                 y_true = data.close[test_range[0]:test_range[1]+1]
                 y_err = np.abs(y_pred/y_true-1)
@@ -64,15 +67,17 @@ def main():
                 tw_pre += step
                 tw_end += step
                 train_range = [data.ldi[tw_pre]+1, test_range[1]]
-                train_list[j+1] = data.scope2str(train_range)  # 保存训练区间
+                if train_list[j+1] != "":
+                    train_list[j+1] = data.scope2str(train_range)  # 保存训练区间
 
             # 最后一次
-            x_train = data.get_input(fd, train_range)
+            x_train = data.get_input(train_range, fd, ud)
             y_train = data.close[train_range[0]:train_range[1]+1]
             model.fit(x_train, y_train)
             test_range = [train_range[1]+1, data.ldi[tw_end]]
-            test_list[-1] = data.scope2str(test_range)  # 保存测试区间
-            x_test = data.get_input(fd, test_range)
+            if test_list[-1] != "":
+                test_list[-1] = data.scope2str(test_range)  # 保存测试区间
+            x_test = data.get_input(test_range, fd, ud)
             y_pred = model.predict(x_test)
             y_true = data.close[test_range[0]:test_range[1]+1]
             y_err = np.abs(y_pred/y_true-1)

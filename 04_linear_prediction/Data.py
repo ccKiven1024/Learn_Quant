@@ -31,16 +31,15 @@ class Data:
         self.stock_code = code
         self.cr = cr
 
-    def get_input(self, fd, _scope):
-        begin, end = _scope[0]-fd, _scope[1]+1-fd
+    def get_input(self,  _scope, fd, ud):
+        begin = _scope[0]-(fd+ud-1)
+        end = _scope[1]-fd+1  # 使其取不到
         matrix = self.m[begin:end]
-        m = end - begin  # 待划分的组数
-        input_array = np.zeros(shape=(m, fd*matrix.shape[1]))
+        m = _scope[1]-_scope[0]+1  # 待划分的组数
+        input_array = np.zeros(shape=(m, ud*matrix.shape[1]))
 
-        indices = np.arange(fd)  # 初始化索引
-        for i in range(m-fd):
-            input_array[i] = np.concatenate(matrix[indices])
-            indices = indices+1
+        for i in range(m):
+            input_array[i] = matrix[i:i + ud].flatten()
         return input_array
 
     def scope2str(self, _range):
