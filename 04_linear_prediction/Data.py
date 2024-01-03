@@ -23,16 +23,25 @@ class Data:
         df['Date'] = pd.to_datetime(df['Date'])  # 将日期转为datetime格式
         self.trade_date = df['Date'].dt.date.values  # 取出日期
         # 一次性将每月最后一天的索引计算出来
-        self.last_day_indices = df.groupby(pd.Grouper(
+        self.ldi = df.groupby(pd.Grouper(
             key='Date', freq='M')).apply(lambda x: x.index[-1]).values
         # last day of each month
-        self.ld = self.trade_date[self.last_day_indices]
+        self.ld = self.trade_date[self.ldi]
 
         self.stock_code = code
         self.cr = cr
 
-    def get_last_index(self, date):
-        """
-        返回date所在月份的最后一天的索引
-        """
-        return self.last_day_indices[np.searchsorted(self.ld, date)]
+    def get_input(self, fd, _scope):
+        begin, end = _scope[0]-fd, _scope[1]+1-fd
+        matrix = self.m[begin:end]
+        m = end - begin  # 待划分的组数
+        input_array = np.zeros(shape=(m, fd*matrix.shape[1]))
+
+        indices = np.arange(fd)  # 初始化索引
+        for i in range(m-fd):
+            input_array[i] = np.concatenate(matrix[indices])
+            indices = indices+1
+        return input_array
+
+    def scope2str(self, _range):
+        return f"{self.trade_date[_range[0]].isoformat()} - {self.trade_date[_range[1]].isoformat()}"
