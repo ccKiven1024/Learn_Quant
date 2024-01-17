@@ -4,6 +4,9 @@ from datetime import date
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
+import os
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
 
 
 def main():
@@ -17,9 +20,9 @@ def main():
     init_shares = 0
     train_interval = [date(2005, 1, 4), date(2013, 12, 31)]
     test_interval = [date(2014, 1, 2), date(2023, 10, 31)]
-    sliding_step = [1, 3, 6]  # 单位为月
+    sliding_step = [6]  # 单位为月
     md_set = np.array([3, 8, 21])  # 均线天数
-    fd_arr = np.array([1, 2, 5])  # 预测未来第几天
+    fd_arr = np.array([1])  # 预测未来第几天
     ud = 5  # 用到的天数
 
     # 1 - 处理数据
@@ -33,11 +36,13 @@ def main():
     writer = pd.ExcelWriter(result_path)
     # 设置模型
     model = Sequential()
-    model.add(LSTM(units=10, activation='relu', input_shape=(
-        data.m.shape[1], ud)))
-
-    model.add(Dense(units=1))
-
+    model.add(LSTM(units=48, activation='leaky_relu', input_shape=(
+        data.m.shape[1], ud), return_sequences=True))
+    model.add(Dropout(0.3))
+    model.add(LSTM(units=24, activation='leaky_relu'))
+    model.add(Dropout(0.3))
+    model.add(Dense(units=12, activation='tanh'))  # 全连接层
+    model.add(Dense(units=1, activation='linear'))  # 输出层
     model.compile(optimizer='adam', loss='mse', metrics=['mape'])
 
     for step in sliding_step:
@@ -61,17 +66,17 @@ def main():
             for j in range(iter_num-1):
                 # 划分输入和输出集
                 x_train = data.get_input(train_range, fd, ud)
-                y_train = data.close[train_range[0]:train_range[1]+1]
+                y_train = data.m[train_range[0]:train_range[1]+1, 3]
                 test_range = [train_range[1]+1, data.ldi[tw_end]]
                 if test_list[j] is None:
                     test_list[j] = data.scope2str(test_range)
                 x_test = data.get_input(test_range, fd, ud)
-                y_test = data.close[test_range[0]:test_range[1]+1]
+                y_test = data.m[test_range[0]:test_range[1]+1, 3]
                 # 训练
                 model.fit(x_train, y_train, epochs=20, batch_size=32,
                           validation_data=(x_test, y_test))
                 # 在测试集上预测
-                y_pred = StandardScaler().inverse_transform(model.predict(x_test))
+                y_pred = model.predict(x_test)
                 # 计算误差
                 err_arr[j, i] = np.abs(y_pred/y_test-1).mean()
                 # 更新训练区间
@@ -84,17 +89,17 @@ def main():
             # 最后一次
             # 划分输入和输出集
             x_train = data.get_input(train_range, fd, ud)
-            y_train = data.close[train_range[0]:train_range[1]+1]
+            y_train = data.m[train_range[0]:train_range[1]+1, 3]
             test_range = [train_range[1]+1, data.ldi[tw_end]]
             if test_list[-1] is None:
                 test_list[-1] = data.scope2str(test_range)
             x_test = data.get_input(test_range, fd, ud)
-            y_test = data.close[test_range[0]:test_range[1]+1]
+            y_test = data.m[test_range[0]:test_range[1]+1, 3]
             # 训练
             model.fit(x_train, y_train, epochs=20, batch_size=32,
                       validation_data=(x_test, y_test))
             # 在测试集上预测
-            y_pred = StandardScaler().inverse_transform(model.predict(x_test))
+            y_pred = model.predict(x_test)
             # 计算误差
             err_arr[-1, i] = np.abs(y_pred/y_test-1).mean()
 
