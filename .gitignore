@@ -4,3 +4,6 @@ __pycache__
 ~$*
 
 github_tokens.md
+
+# ignore Jupyter Notebook files
+*.ipynb*
