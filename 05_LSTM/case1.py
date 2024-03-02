@@ -14,7 +14,7 @@ def judge(_close: np.ndarray, eta: float = 1e-3):
     - _close: 收盘价数组
     - eta: 阈值，这里默认为千分之一
     """
-    array = (_close[1:]-_close[:-1])/_close[:-1]
+    array = _close[1:]/_close[:-1]-1
     # 1:上涨，-1:下跌，0:震荡
     return np.where(array > eta, 1, np.where(array < -eta, -1, 0))
 
@@ -27,17 +27,23 @@ def func1(a1: np.ndarray, a2: np.ndarray) -> np.ndarray:
     - a1: 实际值
     - a2: 预测值
     注意：两个数组等长！
+
+    返回：涨跌情况，实际涨跌情况，预测涨跌情况，命中次数，查准率，查全率
     """
-    ca, actual = np.unique(a1, return_counts=True)  # ca为choice_array
+    # 将涨跌转换为-1/0/1数组
+    a1 = judge(a1)
+    a2 = judge(a2)
+
+    ca, actual = np.unique(a1, return_counts=True)  # ca为choice_array，有序递增
     pred = np.unique(a2, return_counts=True)[1]
 
-    d = dict.fromkeys(ca, 0)
-    for i in range(a1.size):
+    d = dict.fromkeys(ca, 0)  # 初始化字典
+    for i in range(a1.size):  # 计算命中次数
         if a1[i] == a2[i]:
             d[a1[i]] += 1
 
     hit = np.zeros(shape=ca.shape)
-    for i in range(hit.size):
+    for i in range(hit.size):  # 保存命中次数
         hit[i] = d[ca[i]]
 
     precision_rate = hit/pred  # 查准率
@@ -56,9 +62,9 @@ def main():
     init_shares = 0
     train_interval = [date(2005, 1, 4), date(2013, 12, 31)]
     test_interval = [date(2014, 1, 2), date(2023, 10, 31)]
-    sliding_step = [6]  # 单位为月
+    sliding_step = [1, 3, 6]  # 单位为月
     md_set = np.array([3, 8, 21])  # 均线天数
-    fd_arr = np.array([1])  # 预测未来第几天
+    fd_arr = np.array([1, 2, 5])  # 预测未来第几天
     ud = 5  # 用到的天数
 
     # 1 - 处理数据
@@ -69,7 +75,7 @@ def main():
 
     # 2 - 模拟预测
     result_path = "./../result/05case1.xlsx"
-    # writer = pd.ExcelWriter(result_path)
+    writer = pd.ExcelWriter(result_path)
     # 设置模型
     rgl = regularizers.l2(0.01)  # 设置正则化
     model = Sequential()
@@ -101,7 +107,9 @@ def main():
                 data.ld, train_interval[0])-1  # 训练区间起始位置在ld中的索引减1
             end = np.searchsorted(
                 data.ld, train_interval[1])+step  # 测试区间结束位置在ld中的索引
-
+            # 预测的收盘价
+            tmp_index = train_range[1]  # 测试区间前一天的索引
+            pred_price = [data.close[tmp_index]]  # 第一个值是测试区间前的收盘价
             for j in range(iter_num-1):
                 # 划分输入和输出集
                 x_train = data.get_input(train_range, fd, ud)
@@ -122,6 +130,7 @@ def main():
                 y_pred = (y_pred+1)*data.close[0]  # 将收益率还原为收盘价
                 y_true = data.close[test_range[0]:test_range[1]+1]  # 真实收盘价
                 err_arr[j, i] = np.abs(y_pred/y_true-1).mean()
+                pred_price.extend(y_pred)  # 保存预测的收盘价
                 print(err_arr[j, i])
                 # 更新训练区间
                 pre += step
@@ -145,20 +154,35 @@ def main():
             # 在测试集上预测
             y_pred = model.predict(x_test)
             # 计算误差
-            y_pred = data.scaler.scale_[3]*y_pred+data.scaler.mean_[3]
+            y_pred = (y_pred+1)*data.close[0]  # 将收益率还原为收盘价
             y_true = data.close[test_range[0]:test_range[1]+1]
             err_arr[-1, i] = np.abs(y_pred/y_true-1).mean()
+            pred_price.extend(y_pred)
 
             print(f"step={step}m, fd={fd}d is done, cost {time()-s_clk:.3f} s")
 
         # 保存结果
+        # 保存误差
         sheet_name = f"step={step}m"
         values = np.column_stack((train_list, test_list, err_arr))
         cols = ['train', 'test']+[f'err-{fd}d' for fd in fd_arr]
-        tmp_df = pd.DataFrame(values, columns=cols)
-        tmp_df.loc[iter_num, tmp_df.columns[0]
-                   ] = f"time cost = {time()-s_clk:.3f} s"
-        tmp_df.to_excel(writer, sheet_name=sheet_name, index=True)
+        tmp_df1 = pd.DataFrame(values, columns=cols)
+        tmp_df1.to_excel(writer, sheet_name=sheet_name,
+                         index=True)  # 默认将此表置于坐标(0, 0)
+
+        # 保存查准率和查全率
+        # 根据测试区间前一天的索引确定起始位置，根据预测的收盘价的长度确定结束位置，从而使得两个数组等长
+        pred_price = np.array(pred_price)  # 将list转换为array
+        true_price = data.close[tmp_index:tmp_index+pred_price.size]
+        values = func1(true_price, pred_price)
+        cols = ['Up/Down', 'Actual', 'Predict', 'Hit', 'Precision', 'Recall']
+        tmp_d2 = pd.DataFrame(values, columns=cols)
+        # 将此表置于坐标(0, tmp_df1.shape[1]+2)，即在tmp_df1右侧两个单元格处放置此表
+        tmp_d2.to_excel(writer, sheet_name=sheet_name, index=True,
+                        startrow=0, startcol=tmp_df1.shape[1]+2)
+
+        # 记录运行时间
+        tmp_df1.iloc[iter_num, 0] = f"time cost = {time()-s_clk:.3f} s"
 
     writer.close()
 

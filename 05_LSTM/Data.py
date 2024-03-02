@@ -7,7 +7,7 @@ class Data:
     def __init__(self, path, code, cr, md_set: np.ndarray) -> None:
         df = pd.read_excel(path, sheet_name=code)
 
-        self.close = df['Close'].values  # 取出收盘价
+        self.close = df['Close'].to_numpy()  # 取出收盘价
         self.yields = self.close/self.close[0]-1  # 基于该股票首日收盘价的涨跌幅
 
         # 计算均线
@@ -43,6 +43,14 @@ class Data:
         for i in range(length):
             input_array[i] = matrix[i:i + ud]
         return input_array
+
+    def create_output(self, fd):
+        # 创建矩阵，从未来第一天到未来第fd天的收益率
+        self.yields1 = np.zeros(shape=(self.yields.shape[0], fd))
+        i = 0
+        while i < fd:
+            self.yields1[:, i] = np.roll(self.yields, -i-1)
+            i += 1
 
     def scope2str(self, _scope):
         return f"{self.trade_date[_scope[0]]} - {self.trade_date[_scope[1]]}"
